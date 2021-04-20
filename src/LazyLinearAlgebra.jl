@@ -2,6 +2,7 @@ module LazyLinearAlgebra
 
 using LinearAlgebra
 using Base.Threads
+using Base.Threads: @spawn, @sync
 
 const AbstractMatOrFac{T} = Union{AbstractMatrix{T}, Factorization{T}}
 const AbstractVecOfVec{T} = AbstractVector{<:AbstractVector{T}}
@@ -20,9 +21,9 @@ include("block.jl")
 include("solve.jl") # conjugate gradient
 
 # by default, linear solves via cg to take advantage of laziness
-Base.:\(A::LazyFactorization, b::AbstractVector) = cg(A, b; min_res = A.tol)
-function LinearAlgebra.ldiv!(y::AbstractVector, A::LazyFactorization, x::AbstractVector)
-    cg!(A, x, y; min_res = A.tol) # IDEA: pre-allocate CG?
+Base.:\(A::LazyFactorization, b::AbstractVecOrMat) = cg(A, b; min_res = A.tol)
+function LinearAlgebra.ldiv!(y::AbstractVecOrMat, A::LazyFactorization, x::AbstractVecOrMat)
+    cg!(y, A, x; min_res = A.tol) # IDEA: pre-allocate CG?
 end
 
 end # module

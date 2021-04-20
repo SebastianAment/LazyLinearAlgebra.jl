@@ -21,6 +21,12 @@ using LazyLinearAlgebra: cg, CG, CGMatrix
     x = cg(A, b)
     @test norm(A*x-b) ≤ ε
 
+    # matrix
+    r = 3
+    B = randn(n, r)
+    X = cg(A, B)
+    @test norm(A*X-B) ≤ r*ε
+
     ################### CGMatrix
     CA = CGMatrix(A)
     @test CA isa CGMatrix

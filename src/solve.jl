@@ -14,9 +14,9 @@ struct ConjugateGradient{T, M, V<:AbstractVector, R<:CircularBuffer}
         mul_A!(r₁, x)
         @. r₁ = b - r₁ # mul!(r₁, A, x, -1., 1.) # r = b - Ax
         d = copy(r₁)
-        V = typeof(b)
+        V = typeof(r₁)
         r = CircularBuffer{V}(2)
-        push!(r, r₁); push!(r, zero(b));
+        push!(r, r₁); push!(r, zero(r₁));
         Ad = zero(b)
         new{eltype(x), typeof(mul_A!), V, typeof(r)}(mul_A!, b, d, Ad, r)
     end
@@ -47,9 +47,26 @@ function update!(C::ConjugateGradient, x::AbstractVector, t::Int)
 end
 
 function cg(A::AbstractMatOrFac, b::AbstractVector; max_iter::Int = size(A, 2), min_res::Real = 0)
-    cg!(A, b, zeros(eltype(A), size(A, 2)), max_iter = max_iter, min_res = min_res)
+    x = zeros(eltype(A), size(A, 2))
+    cg!(x, A, b, max_iter = max_iter, min_res = min_res)
 end
-function cg!(A::AbstractMatOrFac, b::AbstractVector, x::AbstractVector;
+
+function cg(A::AbstractMatOrFac, B::AbstractMatrix; max_iter::Int = size(A, 2), min_res::Real = 0)
+    X = zeros(size(B))
+    cg!(X, A, B, max_iter = max_iter, min_res = min_res)
+end
+function cg!(X::AbstractMatrix, A::AbstractMatOrFac, B::AbstractMatrix;
+             max_iter::Int = size(A, 2), min_res::Real = 0)
+    @sync for (i, b) in enumerate(eachcol(B))
+        @spawn begin
+            x = @view X[:, i]
+            cg!(x, A, b, max_iter = max_iter, min_res = min_res)
+        end
+    end
+    return X
+end
+
+function cg!(x::AbstractVector, A::AbstractMatOrFac, b::AbstractVector;
                                     max_iter::Int = size(A, 2), min_res::Real = 0)
     cg!(CG(A, b, x), x, max_iter = max_iter, min_res = min_res)
 end
@@ -91,5 +108,5 @@ function mul!(y::AbstractVector, A::CGMatrix, x::AbstractVector, α::Real = 1, �
     mul!(y, A.parent, x, α, β)
 end
 function ldiv!(y::AbstractVector, A::CGMatrix, x::AbstractVector)
-    cg!(A.parent, x, y) # TODO: pre-allocate
+    cg!(y, A.parent, x) # TODO: pre-allocate
 end
