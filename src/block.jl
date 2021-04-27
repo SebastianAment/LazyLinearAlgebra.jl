@@ -119,8 +119,8 @@ end
 # recursively calls mul!, thereby avoiding memory allocation of block-matrix multiplication
 function blockmul!(y::AbstractVecOfVecOrMat, G::AbstractMatrix{<:AbstractMatOrFac},
                    x::AbstractVecOfVecOrMat, strided::Val{true}, α::Real = 1, β::Real = 0)
-    Gij = G[1, 1] # this needs to be done better
-    Gijs = [Gij for _ in 1:nthreads()] # pre-allocate temporary storage for matrix elements
+    # pre-allocate temporary storage for matrix elements (needs to be done better)
+    Gijs = [G[1, 1] for _ in 1:nthreads()]
     @threads for i in eachindex(y)
         @. y[i] = β * y[i]
         Gij = Gijs[threadid()]
