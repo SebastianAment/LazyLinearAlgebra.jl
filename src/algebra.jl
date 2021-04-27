@@ -5,6 +5,7 @@
 # The structures below rely on the mul! functions of the constituent
 # matrices / factorizations to define a potentially more efficient multiplication\
 # IDEA: introduce temporaries and optimal matrix multiplication order to minimize complexity
+# TODO: enable rdiv! for LazyMatrixSum, Product
 ################################################################################
 # in contrast to the AppliedMatrix in LazyArrays, this is not completely lazy
 # in that it calculates intermediate results

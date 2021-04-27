@@ -25,7 +25,7 @@ Base.size(B::BlockFactorization, i::Int) = (1 ≤ i ≤ 2) ? size(B)[i] : 1
 Base.size(B::BlockFactorization) = B.nindices[end]-1, B.mindices[end]-1
 function Base.Matrix(B::BlockFactorization)
     C = zeros(eltype(B), size(B))
-    for j in 1:size(B.A, 2)
+    @threads for j in 1:size(B.A, 2)
         jd = B.mindices[j] : B.mindices[j+1]-1
         for i in 1:size(B.A, 1)
             id = B.nindices[i] : B.nindices[i+1]-1
@@ -66,7 +66,6 @@ function Base.:*(B::BlockFactorization, X::AbstractMatrix)
     mul!(Y, B, X)
 end
 
-# TODO: MMM variant
 function LinearAlgebra.mul!(y::AbstractVector, B::BlockFactorization, x::AbstractVector, α::Real = 1, β::Real = 0)
     xx = [@view x[B.mindices[i] : B.mindices[i+1]-1] for i in 1:length(B.mindices)-1]
     yy = [@view y[B.nindices[i] : B.nindices[i+1]-1] for i in 1:length(B.nindices)-1]
@@ -84,7 +83,7 @@ end
 # carries out multiplication for general BlockFactorization
 function blockmul!(y::AbstractVecOfVecOrMat, G::AbstractMatrix{<:AbstractMatOrFac},
                    x::AbstractVecOfVecOrMat, α::Real = 1, β::Real = 0, strided::Val{false} = Val(false))
-    for i in eachindex(y) # @threads
+    @threads for i in eachindex(y)
         @. y[i] = β * y[i]
         for j in eachindex(x)
             Gij = G[i, j] # if it is not strided, we can't pre-allocate memory for blocks
@@ -122,7 +121,7 @@ function blockmul!(y::AbstractVecOfVecOrMat, G::AbstractMatrix{<:AbstractMatOrFa
                    x::AbstractVecOfVecOrMat, strided::Val{true}, α::Real = 1, β::Real = 0)
     Gij = G[1, 1] # this needs to be done better
     Gijs = [Gij for _ in 1:nthreads()] # pre-allocate temporary storage for matrix elements
-    for i in eachindex(y)
+    @threads for i in eachindex(y)
         @. y[i] = β * y[i]
         Gij = Gijs[threadid()]
         for j in eachindex(x)
