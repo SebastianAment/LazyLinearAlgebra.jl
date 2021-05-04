@@ -49,6 +49,17 @@ using Test
     k = 3
     X = randn(size(M, 2), k)
     @test M*X ≈ F*X
+
+    # special case for diagonal block factorization
+    n, m = 3, 5
+    k = 7
+    A = Diagonal([randn(n, m) for _ in 1:k])
+    F = BlockFactorization(A)
+    M = Matrix(F)
+    x = randn(k*m)
+    y = F*x
+    @test length(y) == n*k
+    @test y ≈ M*x
 end
 
 end

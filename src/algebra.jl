@@ -10,6 +10,7 @@
 # in contrast to the AppliedMatrix in LazyArrays, this is not completely lazy
 # in that it calculates intermediate results
 # observation: this is remarkably similar to the KroneckerProducts implementation
+# allow AbstractMatOrFacOrUni? will need adjustment for size function
 struct LazyMatrixProduct{T, AT<:Tuple{Vararg{AbstractMatOrFac}}, F} <: LazyFactorization{T}
     args::AT
     tol::F

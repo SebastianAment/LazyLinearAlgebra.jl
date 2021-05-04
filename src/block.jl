@@ -90,6 +90,7 @@ function blockmul!(y::AbstractVecOfVecOrMat, G::AbstractMatrix{<:AbstractMatOrFa
             mul!(y[i], Gij, x[j], α, 1) # woodbury still allocates here because of Diagonal
         end
     end
+    return y
 end
 
 # carries out block multiplication for strided block factorization
@@ -119,7 +120,7 @@ end
 # recursively calls mul!, thereby avoiding memory allocation of block-matrix multiplication
 function blockmul!(y::AbstractVecOfVecOrMat, G::AbstractMatrix{<:AbstractMatOrFac},
                    x::AbstractVecOfVecOrMat, strided::Val{true}, α::Real = 1, β::Real = 0)
-    # pre-allocate temporary storage for matrix elements (needs to be done better)
+    # pre-allocate temporary storage for matrix elements (needs to be done better, "similar"?)
     Gijs = [G[1, 1] for _ in 1:nthreads()]
     @threads for i in eachindex(y)
         @. y[i] = β * y[i]
@@ -149,3 +150,30 @@ end
 #     # cholesky(B, Val(true))
 #     return B
 # end
+
+################## specialization for diagonal block factorizations ############
+# const DiagonalBlockFactorization{T} = BlockFactorization{T, <:Diagonal}
+# carries out multiplication for Diagonal BlockFactorization
+function blockmul!(y::AbstractVecOfVecOrMat, G::Diagonal{<:AbstractMatOrFac},
+                   x::AbstractVecOfVecOrMat, α::Real = 1, β::Real = 0, strided::Val{false} = Val(false))
+    @threads for i in eachindex(y)
+        @. y[i] = β * y[i]
+        Gii = G[i, i] # if it is not strided, we can't pre-allocate memory for blocks
+        mul!(y[i], Gii, x[i], α, 1) # woodbury still allocates here because of Diagonal
+    end
+    return y
+end
+
+# recursively calls mul!, thereby avoiding memory allocation of block-matrix multiplication
+function blockmul!(y::AbstractVecOfVecOrMat, G::Diagonal{<:AbstractMatOrFac},
+                   x::AbstractVecOfVecOrMat, strided::Val{true}, α::Real = 1, β::Real = 0)
+    # pre-allocate temporary storage for matrix elements (needs to be done better, "similar"?)
+    Giis = [G[1, 1] for _ in 1:nthreads()]
+    @threads for i in eachindex(y)
+        @. y[i] = β * y[i]
+        Gii = Giis[threadid()]
+        Gii = evaluate_block!(Gii, G, i, i) # evaluating G[i, j] but can be more efficient if block has special structure (e.g. Woodbury)
+        mul!(y[i], Gii, x[i], α, 1) # woodbury still allocates here because of Diagonal
+    end
+    return y
+end
