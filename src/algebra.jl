@@ -71,6 +71,7 @@ Base.size(L::LazyMatrixSum, i...) = size(L.args[1], i...)
 Base.adjoint(L::LazyMatrixSum) = LazyMatrixSum(adjoint.(L.args))
 Base.Matrix(L::LazyMatrixSum) = sum(Matrix, L.args)
 Base.AbstractMatrix(L::LazyMatrixSum) = sum(AbstractMatrix, L.args)
+Base.getindex(L::LazyMatrixSum, i...) = sum(x->getindex(x, i...), L.args)
 
 Base.:*(x::AbstractMatrix, L::LazyMatrixSum) = (L'*x')'
 Base.:*(L::LazyMatrixSum, x::AbstractVector) = mul!(zeros(eltype(x), size(L, 1)), L, x)

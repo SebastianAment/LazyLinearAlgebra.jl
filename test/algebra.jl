@@ -31,6 +31,11 @@ using Test
     y = ML*x
     @test ML*x ≈ L*x
     @test ML' ≈ Matrix(L')
+    for _ in 1:16
+        i = rand(1:n) # test some random indices
+        j = rand(1:m)
+        @test L[i, j] ≈ ML[i, j]
+    end
 
     # testing solve
     A, B = randn(n, n), randn(n, n) # invertible MatrixProduct
