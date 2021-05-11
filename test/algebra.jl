@@ -30,6 +30,8 @@ using Test
     @test ML ≈ +(A, B, C)
     y = ML*x
     @test ML*x ≈ L*x
+    X = randn(m, 3)
+    @test ML*X ≈ L*X
     @test ML' ≈ Matrix(L')
     for _ in 1:16
         i = rand(1:n) # test some random indices

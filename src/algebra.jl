@@ -42,8 +42,16 @@ Base.Matrix(L::LazyMatrixProduct) = prod(Matrix, L.args)
 Base.AbstractMatrix(L::LazyMatrixProduct) = prod(AbstractMatrix, L.args)
 
 Base.:*(x::AbstractMatrix, L::LazyMatrixProduct) = (L'*x')'
-Base.:*(L::LazyMatrixProduct, x::AbstractVector) = mul!(zeros(eltype(x), size(L, 1)), L, x)
-Base.:*(L::LazyMatrixProduct, x::AbstractMatrix) = mul!(zeros(eltype(x), size(L, 1), size(x, 2)), L, x)
+function Base.:*(L::LazyMatrixProduct, x::AbstractVector) # IDEA: could consolidate with LazyMatrixSum
+    T = promote_type(eltype(L), eltype(x))
+    b = zeros(T, size(L, 1))
+    mul!(b, L, x)
+end
+function Base.:*(L::LazyMatrixProduct, X::AbstractMatrix)
+    T = promote_type(eltype(L), eltype(X))
+    B = zeros(T, (size(L, 1), size(X, 2)))
+    mul!(B, L, X)
+end
 function LinearAlgebra.mul!(y::AbstractVecOrMat, L::LazyMatrixProduct, x::AbstractVecOrMat, α::Real = 1, β::Real = 0)
     z = deepcopy(x)
     for A in reverse(L.args)
@@ -74,9 +82,18 @@ Base.AbstractMatrix(L::LazyMatrixSum) = sum(AbstractMatrix, L.args)
 Base.getindex(L::LazyMatrixSum, i...) = sum(x->getindex(x, i...), L.args)
 
 Base.:*(x::AbstractMatrix, L::LazyMatrixSum) = (L'*x')'
-Base.:*(L::LazyMatrixSum, x::AbstractVector) = mul!(zeros(eltype(x), size(L, 1)), L, x)
-Base.:*(L::LazyMatrixSum) = mul!(zeros(eltype(x), size(L, 1), size(x, 2)), L, x)
-function LinearAlgebra.mul!(y::AbstractVecOrMat, L::LazyMatrixSum, x::AbstractVecOrMat, α::Real = 1, β::Real = 0)
+function Base.:*(L::LazyMatrixSum, x::AbstractVector)
+    T = promote_type(eltype(L), eltype(x))
+    b = zeros(T, size(L, 1))
+    mul!(b, L, x)
+end
+function Base.:*(L::LazyMatrixSum, X::AbstractMatrix)
+    T = promote_type(eltype(L), eltype(X))
+    B = zeros(T, (size(L, 1), size(X, 2)))
+    mul!(B, L, X)
+end
+function LinearAlgebra.mul!(y::AbstractVecOrMat, L::LazyMatrixSum, x::AbstractVecOrMat,
+                            α::Real = 1, β::Real = 0)
     @. y = β*y
     for A in L.args
         mul!(y, A, x, α, 1)
