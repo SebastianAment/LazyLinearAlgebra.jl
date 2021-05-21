@@ -1,10 +1,11 @@
 ################################################################################
 # assumes A is a matrix of matrices or factorizations each of which has size d by d
-struct BlockFactorization{T, AT<:AbstractMatrix{<:AbstractMatOrFac{T}}, U, V} <: LazyFactorization{T}
+struct BlockFactorization{T, AT<:AbstractMatrix{<:AbstractMatOrFac{T}}, U, V,
+                          TOL <: Real} <: LazyFactorization{T}
     A::AT
     nindices::U
     mindices::V
-    tol::T
+    tol::TOL
 end
 const StridedBlockFactorization = BlockFactorization{<:Any, <:Any, <:StepRange, <:StepRange}
 
