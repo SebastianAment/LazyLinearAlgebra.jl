@@ -56,6 +56,19 @@ using LazyLinearAlgebra: cg, CG, CGMatrix
     Y = similar(X)
     @test ldiv!(Y, CA, B) ≈ X
 
+    # type-promotion in solve
+    x = randn(ComplexF64, n)
+    b = A*x # with vector target
+    @test CA \ b ≈ x
+    y = similar(x)
+    @test ldiv!(y, CA, b) ≈ x
+
+    X = randn(ComplexF64, n, r)
+    B = A*X # with matrix target
+    @test CA \ B ≈ X
+    Y = similar(X)
+    @test ldiv!(Y, CA, B) ≈ X
+
     # getindex
     @test CA[:, 1] ≈ A[:, 1]
     @test CA[3, 2] ≈ A[3, 2]

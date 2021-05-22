@@ -27,7 +27,10 @@ function CG(A::AbstractMatOrFac, b::AbstractVector, x::AbstractVector)
     mul_A!(Ad, d) = mul!(Ad, A, d)
     ConjugateGradient(mul_A!, b, x)
 end
-CG(A::AbstractMatOrFac, b::AbstractVector) = CG(A, b, zeros(eltype(A), size(A, 2)))
+function CG(A::AbstractMatOrFac, b::AbstractVector)
+    x = zeros(promote_type(eltype(A), eltype(b)), size(A, 2))
+    CG(A, b, x)
+end
 
 # no allocations :)
 function update!(C::ConjugateGradient, x::AbstractVector, t::Int)
@@ -47,13 +50,14 @@ function update!(C::ConjugateGradient, x::AbstractVector, t::Int)
 end
 
 function cg(A::AbstractMatOrFac, b::AbstractVector; max_iter::Int = size(A, 2), min_res::Real = 0)
-    x = zeros(eltype(A), size(A, 2))
+    x = zeros(promote_type(eltype(A), eltype(b)), size(A, 2))
     cg!(x, A, b, max_iter = max_iter, min_res = min_res)
 end
 
 function cg(A::AbstractMatOrFac, B::AbstractMatrix; max_iter::Int = size(A, 2), min_res::Real = 0)
-    X = zeros(size(B))
+    X = zeros(promote_type(eltype(A), eltype(B)), size(B))
     cg!(X, A, B, max_iter = max_iter, min_res = min_res)
+
 end
 function cg!(X::AbstractMatrix, A::AbstractMatOrFac, B::AbstractMatrix;
              max_iter::Int = size(A, 2), min_res::Real = 0)
@@ -102,7 +106,7 @@ Base.size(A::CGMatrix) = size(A.parent)
 Base.size(A::CGMatrix, i) = 1 ≤ i ≤ 2 ? size(A.parent)[i] : 1
 
 Base.:*(A::CGMatrix, b::AbstractVector) = A.parent * b
-Base.:\(A::CGMatrix, b::AbstractVector) = cg(A.parent, b)
+# Base.:\(A::CGMatrix, b::AbstractVector) = cg(A.parent, b)
 import LinearAlgebra: mul!, ldiv!
 function mul!(y::AbstractVector, A::CGMatrix, x::AbstractVector, α::Real = 1, β::Real = 0)
     mul!(y, A.parent, x, α, β)
