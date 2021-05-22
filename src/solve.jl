@@ -84,22 +84,22 @@ end
 # TODO: could extend for general iterative solvers
 # struct IterativeMatrix end
 # wrapper type which converts all solves into conjugate gradient solves,
-# with minimum residual tolerance min_res
+# with minimum residual tolerance tol
 # add pre-conditioner?
-struct ConjugateGradientMatrix{T, M<:AbstractMatOrFac{T}} <: AbstractMatrix{T}
+struct ConjugateGradientMatrix{T, M<:AbstractMatOrFac{T}, TOL <:Real} <:LazyFactorization{T} # <: AbstractMatrix{T}
     parent::M
-    min_res::T
-    function ConjugateGradientMatrix(A; min_res = 0, check::Bool = true)
+    tol::TOL # minimum residual tolerance
+    function ConjugateGradientMatrix(A; tol::Real = 0, check::Bool = true)
         ishermitian(A) || throw("input matrix not hermitian")
         T = eltype(A)
-        new{T, typeof(A)}(A, convert(T, min_res))
+        new{T, typeof(A), typeof(tol)}(A, convert(T, tol))
     end
 end
 const CGMatrix = ConjugateGradientMatrix
 Base.getindex(A::CGMatrix, i...) = getindex(A.parent, i...)
 Base.setindex!(A::CGMatrix, i...) = setindex!(A.parent, i...)
-
 Base.size(A::CGMatrix) = size(A.parent)
+Base.size(A::CGMatrix, i) = 1 ≤ i ≤ 2 ? size(A.parent)[i] : 1
 
 Base.:*(A::CGMatrix, b::AbstractVector) = A.parent * b
 Base.:\(A::CGMatrix, b::AbstractVector) = cg(A.parent, b)

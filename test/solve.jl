@@ -44,8 +44,17 @@ using LazyLinearAlgebra: cg, CG, CGMatrix
     @test mul!(y, CA, x, α, β) ≈ β*b + α*A*x
 
     #################### ldiv!
-    b = A*x
+    b = A*x # with vector target
+    @test CA \ b ≈ x
     @test ldiv!(y, CA, b) ≈ x
+
+    # testing solve
+    r = 3
+    X = randn(n, r)
+    B = A*X # with matrix target
+    @test CA \ B ≈ X
+    Y = similar(X)
+    @test ldiv!(Y, CA, B) ≈ X
 
     # getindex
     @test CA[:, 1] ≈ A[:, 1]
