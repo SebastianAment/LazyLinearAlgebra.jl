@@ -122,7 +122,7 @@ end
 function blockmul!(y::AbstractVecOfVecOrMat, G::AbstractMatrix{<:AbstractMatOrFac},
                    x::AbstractVecOfVecOrMat, strided::Val{true}, α::Real = 1, β::Real = 0)
     # pre-allocate temporary storage for matrix elements (needs to be done better, "similar"?)
-    Gijs = [G[1, 1] for _ in 1:nthreads()]
+    Gijs = [G[1, 1] for _ in 1:nthreads()] # could be nothing if G is a AbstractMatrix{<:Matrix}
     @threads for i in eachindex(y)
         @. y[i] = β * y[i]
         Gij = Gijs[threadid()]
@@ -137,7 +137,7 @@ end
 # fallback for generic matrices or factorizations
 # does not overwrite Gij in this case, only for more advanced data structures,
 # that are not already fully allocated
-function evaluate_block!(Gij::AbstractMatrix, G::AbstractMatrix{<:AbstractMatOrFac}, i::Int, j::Int)
+function evaluate_block!(Gij, G::AbstractMatrix{<:AbstractMatOrFac}, i::Int, j::Int)
     G[i, j]
 end
 
