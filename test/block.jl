@@ -60,6 +60,17 @@ using Test
     y = F*x
     @test length(y) == n*k
     @test y ≈ M*x
+
+    # testing with vector elements
+    n, m = 2, 5
+    d = 3
+    A = [randn(d) for i in 1:n, j in 1:m]
+    F = BlockFactorization(A)
+    M = Matrix(F)
+    x = randn(m)
+    y = F*x
+    @test length(y) == d*n
+    @test y ≈ M*x
 end
 
 end

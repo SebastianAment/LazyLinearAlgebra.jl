@@ -21,6 +21,12 @@ function BlockFactorization(A::AbstractMatrix; tol = default_tol)
     di, dj = size(A[1, 1])
     BlockFactorization(A, di, dj, tol = tol) # this assumes it is strided
 end
+# allowing AT to be Matrix of Vectors would not work well with blockmul!
+# better to cast to Matrix of Matrices
+function BlockFactorization(A::AbstractMatrix{<:AbstractVector}; tol = default_tol)
+    B = [reshape(aij, :, 1) for aij in A]
+    BlockFactorization(B, tol = tol)
+end
 
 Base.size(B::BlockFactorization, i::Int) = (1 ≤ i ≤ 2) ? size(B)[i] : 1
 Base.size(B::BlockFactorization) = B.nindices[end]-1, B.mindices[end]-1
@@ -158,7 +164,7 @@ end
 function blockmul!(y::AbstractVecOfVecOrMat, G::Diagonal{<:AbstractMatOrFac},
                    x::AbstractVecOfVecOrMat, α::Real = 1, β::Real = 0, strided::Val{false} = Val(false))
     @threads for i in eachindex(y)
-        @. y[i] = β * y[i]
+        @. y[i] = β * y[i] # TODO: y[i] .*= β ?
         Gii = G[i, i] # if it is not strided, we can't pre-allocate memory for blocks
         mul!(y[i], Gii, x[i], α, 1) # woodbury still allocates here because of Diagonal
     end
