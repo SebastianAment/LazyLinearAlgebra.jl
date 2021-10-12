@@ -29,3 +29,8 @@ function Base.circshift!(cb::CircularBuffer, shifts::Int = 1)
     end
     return cb
 end
+
+function check_input(x::AbstractArray)
+    any(isnan, x) && throw(DomainError("encountered NaN in x"))
+    any(isinf, x) && throw(DomainError("encountered Inf in x"))
+end

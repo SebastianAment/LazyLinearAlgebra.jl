@@ -9,7 +9,8 @@ const AbstractMatOrFacOrUni{T} = Union{AbstractMatrix{T}, Factorization{T}, Unif
 const AbstractVecOfVec{T} = AbstractVector{<:AbstractVector{T}}
 const AbstractVecOfVecOrMat{T} = AbstractVector{<:AbstractVecOrMat{T}}
 
-# TODO: collect my other Lazy LA packages here
+# TODO: collect my other Lazy LA packages here (incorporate LazyInverse into this package)
+# using LazyInverse
 export LazyMatrixProduct, LazyMatrixSum, BlockFactorization
 
 abstract type LazyFactorization{T} <: Factorization{T} end

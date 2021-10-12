@@ -8,7 +8,7 @@
 # TODO: enable rdiv! for LazyMatrixSum, Product
 ################################################################################
 # in contrast to the AppliedMatrix in LazyArrays, this is not completely lazy
-# in that it calculates intermediate results
+# in that it calculates intermediate results, important to make use of special structure
 # observation: this is remarkably similar to the KroneckerProducts implementation
 # allow AbstractMatOrFacOrUni? will need adjustment for size function
 struct LazyMatrixProduct{T, AT<:Tuple{Vararg{AbstractMatOrFac}}, F} <: LazyFactorization{T}
