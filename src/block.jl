@@ -63,6 +63,15 @@ end
 #     return B.A[ni, nj][ri, rj]
 # end
 
+function LinearAlgebra.diag(B::BlockFactorization)
+    n = minimum(size(B))
+    d = zeros(eltype(B), n)
+    @threads for i in 1:n
+        d[i] = B[i, i]
+    end
+    return d
+end
+
 ############################## matrix multiplication ###########################
 function Base.:*(B::BlockFactorization, x::AbstractVector)
     y = zeros(eltype(x), size(B, 1))

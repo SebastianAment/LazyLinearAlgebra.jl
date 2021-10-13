@@ -71,6 +71,10 @@ using Test
     y = F*x
     @test length(y) == d*n
     @test y ≈ M*x
+
+    diagF = diag(F)
+    @test length(diagF) == minimum(size(M))
+    @test diagF ≈ diag(M)
 end
 
 end
