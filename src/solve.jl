@@ -27,7 +27,8 @@ struct ConjugateGradient{T, AT, V<:AbstractVecOrMat, RT<:CircularBuffer, RN<:Abs
         end
         d = copy(z₁)
         Ad = zero(b)
-        r_norms = fill(NaN, size(x))
+        norm_T = typeof(norm(r₁))
+        r_norms = fill(norm_T(NaN), size(x))
         T, AT, RT, RN, MT = eltype(x), typeof(A), typeof(r), typeof(r_norms), typeof(M)
         new{T, AT, V, RT, RN, MT}(A, b, d, Ad, r, z, M, r_norms)
     end

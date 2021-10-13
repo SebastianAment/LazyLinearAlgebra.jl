@@ -3,6 +3,7 @@ module TestLinearSolvers
 using Test
 using LinearAlgebra
 using LazyLinearAlgebra: cg, CG, CGMatrix, cg! #, preconditioned_system
+# using ForwardDiff
 
 @testset "solve" begin
     @testset "conjugate gradient" begin
@@ -43,6 +44,8 @@ using LazyLinearAlgebra: cg, CG, CGMatrix, cg! #, preconditioned_system
         cg!(C, x)
         @test C.r_norms[1] < ε
         @test all(isnan, C.r_norms[2:end]) # means it returned after one iteration
+
+        # testing ForwardDiff?
     end
 
     @testset "CGMatrix" begin
