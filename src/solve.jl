@@ -178,7 +178,7 @@ function ldiv!(y::AbstractMatrix, A::CGFact, x::AbstractMatrix)
 end
 
 # factorize preconditiones system
-function LinearAlgebra.factorize(F::ConjugateGradientFactorization; k::Int = 16, sigma::Real = 1e-2)
+function LinearAlgebra.factorize(F::ConjugateGradientFactorization; k::Int = 16, sigma = 1e-2)
     if isnothing(F.preconditioner) # if there's already a preconditioner, skip this step
         P = cholesky_preconditioner(F.parent, k, sigma)
         F = CGFact(F.parent, P, tol = F.tol)
@@ -191,10 +191,14 @@ using LinearAlgebraExtensions: cholesky! # need the generic implementation
 using WoodburyIdentity
 function cholesky_preconditioner(A::AbstractMatOrFac, k::Int, σ::Real = 1e-2)
     n = LinearAlgebra.checksquare(A)
+    cholesky_preconditioner(A, k, σ^2*I(n))
+end
+function cholesky_preconditioner(A::AbstractMatOrFac, k::Int, D::Diagonal)
+    n = LinearAlgebra.checksquare(A)
     k = min(n, k)
     U = zeros(k, n)
     cholesky!(U, A, Val(true), check = false) # pivoted cholesky algorithm that forms rows lazily
-    M = Woodbury((σ^2*I)(n), U', (1.0I)(k), U)
+    M = Woodbury(D, U', (1.0I)(k), U)
     F = factorize(M)
     return F
 end
