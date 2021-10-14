@@ -156,15 +156,10 @@ function evaluate_block!(Gij, G::AbstractMatrix{<:AbstractMatOrFac}, i::Int, j::
     G[i, j]
 end
 
-function LinearAlgebra.factorize(B::BlockFactorization; tol::Real = 0)
-    return CGFact(B, cholesky_preconditioner(B), tol = tol)
-end
-
-# IDEA: add pre-conditioner at this step for GradientKernel, etc ...
-# maxrank could force it to stop early
-# function LinearAlgebra.factorize(B::BlockFactorization{}; tol::Real = 0, maxrank::Int = 1024)
-#     # cholesky(B, Val(true))
-#     return B
+# IDEA: add pre-conditioner at this step for GradientKernel, etc.
+# problem: BlockFactorization is more general than pos def matrices ...
+# function LinearAlgebra.factorize(B::BlockFactorization; tol::Real = 0, k::Int = 16)
+#     return CGFact(B, cholesky_preconditioner(B, k), tol = tol)
 # end
 
 ################## specialization for diagonal block factorizations ############
