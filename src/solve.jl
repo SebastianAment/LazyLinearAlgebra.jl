@@ -44,12 +44,6 @@ function CG(A::AbstractMatOrFac, B::AbstractMatrix)
     CG(A, B, X)
 end
 
-# NOTE: A has to support mul!(b, A, x)
-# function CG(A::AbstractMatOrFac, b::AbstractVecOrMat, x::AbstractVecOrMat, M::Union{Nothing, AbstractMatOrFac} = nothing)
-#     mul_A!(Ad, d) = mul!(Ad, A, d)
-#     ConjugateGradient(mul_A!, b, x, M)
-# end
-
 # preconditioned version
 # M is preconditioner
 function update!(C::ConjugateGradient, x::AbstractVecOrMat, t::Int)
@@ -82,31 +76,35 @@ function update!(C::ConjugateGradient, x::AbstractVecOrMat, t::Int)
     return x
 end
 
-function cg(A::AbstractMatOrFac, b::AbstractVector; max_iter::Int = size(A, 2), min_res::Real = 0)
+function cg(A::AbstractMatOrFac, b::AbstractVector; max_iter::Int = size(A, 2), atol::Real = 0, rtol::Real = 0)
     x = zeros(promote_type(eltype(A), eltype(b)), size(A, 2))
-    cg!(x, A, b, max_iter = max_iter, min_res = min_res)
+    cg!(x, A, b, max_iter = max_iter, atol = atol, rtol = rtol)
 end
 
 # TODO: enable matrix-matrix multiply in CG algorithm to take advantage of BLAS-3 level
-function cg(A::AbstractMatOrFac, B::AbstractMatrix; max_iter::Int = size(A, 2), min_res::Real = 0)
+function cg(A::AbstractMatOrFac, B::AbstractMatrix; max_iter::Int = size(A, 2), atol::Real = 0, rtol::Real = 0)
     X = zeros(promote_type(eltype(A), eltype(B)), size(B))
-    cg!(X, A, B, max_iter = max_iter, min_res = min_res)
+    cg!(X, A, B, max_iter = max_iter, atol = atol, rtol = rtol)
 end
 
 function cg!(x::AbstractVector, A::AbstractMatOrFac, b::AbstractVector;
-                                    max_iter::Int = size(A, 2), min_res::Real = 0)
-    cg!(CG(A, b, x), x, max_iter = max_iter, min_res = min_res)
+                                    max_iter::Int = size(A, 2), atol::Real = 0, rtol::Real = 0)
+    cg!(CG(A, b, x), x, max_iter = max_iter, atol = atol, rtol = rtol)
 end
 
 function cg!(X::AbstractMatrix, A::AbstractMatOrFac, B::AbstractMatrix;
-                                    max_iter::Int = size(A, 2), min_res::Real = 0)
-    cg!(CG(A, B, X), X, max_iter = max_iter, min_res = min_res)
+                                    max_iter::Int = size(A, 2), atol::Real = 0, rtol::Real = 0)
+    cg!(CG(A, B, X), X, max_iter = max_iter, atol = atol, rtol = rtol)
 end
 
-function cg!(C::CG, x::AbstractVecOrMat; max_iter::Int = size(C.A, 2), min_res::Real = 0)
+# atol is absolute tolerance in residual norm
+# rtol is relative tolerance in residual norm
+function cg!(C::CG, x::AbstractVecOrMat; max_iter::Int = size(C.A, 2), atol::Real = 0, rtol::Real = 0)
+    b_norm = norm(C.b)
+    has_converged(z) = (z < atol) || (z < rtol*b_norm)
     for i in 1:max_iter
         update!(C, x, i)
-        @views any(>(min_res), C.r_norms[i, :]) || break
+        @views any(!has_converged, C.r_norms[i, :]) || break
     end
     return x
 end
@@ -117,9 +115,14 @@ end
 # then runs canonical cg on it
 # afterwards, converts to solution of original system
 function cg!(x::AbstractVecOrMat, A::AbstractMatOrFac, b::AbstractVecOrMat, M::AbstractMatOrFac;
-                                    max_iter::Int = size(A, 2), min_res::Real = 0)
+                                    max_iter::Int = size(A, 2), atol::Real = 0, rtol::Real = 0)
     C = CG(A, b, x, M)
-    cg!(C, x, max_iter = max_iter, min_res = min_res) # run cg on pre-conditioned system
+    cg!(C, x, max_iter = max_iter, atol = atol, rtol = rtol) # run cg on pre-conditioned system
+end
+# in case nothing is passed as preconditioner, fall back on regular cg
+function cg!(x::AbstractVecOrMat, A::AbstractMatOrFac, b::AbstractVecOrMat, M::Nothing;
+                                    max_iter::Int = size(A, 2), atol::Real = 0, rtol::Real = 0)
+    cg!(x, A, b, max_iter = max_iter, atol = atol, rtol = rtol)
 end
 
 # E should be such that E*E' = M (e.g. the lower-triangular "L" component in a cholesky factorization)
@@ -138,45 +141,71 @@ end
 # wrapper type which converts all solves into conjugate gradient solves,
 # with minimum residual tolerance tol
 # add pre-conditioner?
-struct ConjugateGradientMatrix{T, M<:AbstractMatOrFac{T}, TOL <:Real} <:LazyFactorization{T} # <: AbstractMatrix{T}
+struct ConjugateGradientFactorization{T, M<:AbstractMatOrFac{T}, TOL <:Real, P} <: LazyFactorization{T} # <: AbstractMatrix{T}
     parent::M
     tol::TOL # minimum residual tolerance
-    function ConjugateGradientMatrix(A; tol::Real = 0, check::Bool = true)
-        ishermitian(A) || throw("input matrix not hermitian")
-        T = eltype(A)
-        new{T, typeof(A), typeof(tol)}(A, convert(T, tol))
-    end
+    preconditioner::P
 end
-const CGMatrix = ConjugateGradientMatrix
-Base.getindex(A::CGMatrix, i...) = getindex(A.parent, i...)
-Base.setindex!(A::CGMatrix, i...) = setindex!(A.parent, i...)
-Base.size(A::CGMatrix) = size(A.parent)
-Base.size(A::CGMatrix, i) = 1 ≤ i ≤ 2 ? size(A.parent)[i] : 1
+# P is preconditioner
+function ConjugateGradientFactorization(A, P = nothing; tol::Real = 0, check::Bool = false)
+    check && (ishermitian(A) || throw("input matrix not hermitian"))
+    T = eltype(A)
+    ConjugateGradientFactorization(A, convert(T, tol), P)
+end
 
-Base.:*(A::CGMatrix, b::AbstractVecOrMat) = A.parent * b
-# Base.:\(A::CGMatrix, b::AbstractVector) = cg(A.parent, b)
+const CGFact = ConjugateGradientFactorization
+const CGMatrix = CGFact
+
+Base.getindex(A::CGFact, i...) = getindex(A.parent, i...)
+Base.setindex!(A::CGFact, i...) = setindex!(A.parent, i...)
+Base.size(A::CGFact) = size(A.parent)
+Base.size(A::CGFact, i) = 1 ≤ i ≤ 2 ? size(A.parent)[i] : 1
+
+Base.:*(A::CGFact, b::AbstractVecOrMat) = A.parent * b
+# Base.:\(A::CGFact, b::AbstractVector) = cg(A.parent, b)
 import LinearAlgebra: mul!, ldiv!
-function mul!(y::AbstractVector, A::CGMatrix, x::AbstractVector, α::Real = 1, β::Real = 0)
+function mul!(y::AbstractVector, A::CGFact, x::AbstractVector, α::Real = 1, β::Real = 0)
     mul!(y, A.parent, x, α, β)
 end
-function ldiv!(y::AbstractVector, A::CGMatrix, x::AbstractVector)
-    cg!(y, A.parent, x) # TODO: pre-allocate
+function ldiv!(y::AbstractVector, A::CGFact, x::AbstractVector)
+    cg!(y, A.parent, x, A.preconditioner) # TODO: pre-allocate
+end
+function mul!(y::AbstractMatrix, A::CGFact, x::AbstractMatrix, α::Real = 1, β::Real = 0)
+    mul!(y, A.parent, x, α, β)
+end
+function ldiv!(y::AbstractMatrix, A::CGFact, x::AbstractMatrix)
+    cg!(y, A.parent, x, A.preconditioner) # TODO: pre-allocate
 end
 
-function mul!(y::AbstractMatrix, A::CGMatrix, x::AbstractMatrix, α::Real = 1, β::Real = 0)
-    mul!(y, A.parent, x, α, β)
+# factorize preconditiones system
+function LinearAlgebra.factorize(F::ConjugateGradientFactorization; k::Int = 16, sigma::Real = 1e-2)
+    if isnothing(F.preconditioner) # if there's already a preconditioner, skip this step
+        P = cholesky_preconditioner(F.parent, k, sigma)
+        F = CGFact(F.parent, P, tol = F.tol)
+    end
+    return F
 end
-function ldiv!(y::AbstractMatrix, A::CGMatrix, x::AbstractMatrix)
-    cg!(y, A.parent, x) # TODO: pre-allocate
+
+# computes a low-rank + diagonal approximation to the inverse
+using LinearAlgebraExtensions: cholesky! # need the generic implementation
+using WoodburyIdentity
+function cholesky_preconditioner(A::AbstractMatOrFac, k::Int, σ::Real = 1e-2)
+    n = LinearAlgebra.checksquare(A)
+    k = min(n, k)
+    U = zeros(k, n)
+    cholesky!(U, A, Val(true), check = false) # pivoted cholesky algorithm that forms rows lazily
+    M = Woodbury((σ^2*I)(n), U', (1.0I)(k), U)
+    F = factorize(M)
+    return F
 end
 
 # OLD: parallizes over columns, new implementation takes advantage of BLAS-3
 # function cg!(X::AbstractMatrix, A::AbstractMatOrFac, B::AbstractMatrix;
-#              max_iter::Int = size(A, 2), min_res::Real = 0)
+#              max_iter::Int = size(A, 2), atol::Real = 0, rtol::Real = 0)
 #     @sync for (i, b) in enumerate(eachcol(B))
 #         @spawn begin
 #             x = @view X[:, i]
-#             cg!(x, A, b, max_iter = max_iter, min_res = min_res)
+#             cg!(x, A, b, max_iter = max_iter, atol = atol, rtol = rtol)
 #         end
 #     end
 #     return X

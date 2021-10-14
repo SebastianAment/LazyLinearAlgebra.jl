@@ -15,7 +15,9 @@ export LazyMatrixProduct, LazyMatrixSum, BlockFactorization
 
 abstract type LazyFactorization{T} <: Factorization{T} end
 
-const default_tol = 1e-6 # default residual tolerance for cg
+const default_tol = 1e-6
+const default_atol = default_tol # default absolute residual tolerance for cg
+const default_rtol = default_tol # default relative residual tolerance for cg
 
 include("util.jl")
 include("algebra.jl")
@@ -23,21 +25,32 @@ include("block.jl")
 include("solve.jl") # conjugate gradient
 
 # by default, linear solves via cg to take advantage of laziness
-Base.:\(A::LazyFactorization, b::AbstractVector) = cg(A, b; min_res = A.tol)
-Base.:\(A::LazyFactorization, B::AbstractMatrix) = cg(A, B; min_res = A.tol)
+function Base.:\(A::LazyFactorization, b::AbstractVector) # = factorize(A) \ b
+    cg(A, b; atol = A.tol, rtol = A.tol)
+end
+function Base.:\(A::LazyFactorization, B::AbstractMatrix) # = factorize(A) \ b
+    cg(A, B; atol = A.tol, rtol = A.tol)
+end
+# should we default to factorizing first?
 function Base.:\(A::LazyFactorization, b::Vector{Complex{T}}) where T <: Union{Float32, Float64}
-    cg(A, b; min_res = A.tol)
+    cg(A, b; atol = A.tol, rtol = A.tol)
 end
 function Base.:\(A::LazyFactorization, B::Matrix{Complex{T}}) where T <: Union{Float32, Float64}
-    cg(A, B; min_res = A.tol)
+    cg(A, B; atol = A.tol, rtol = A.tol)
 end
 function LinearAlgebra.ldiv!(y::AbstractVector, A::LazyFactorization, x::AbstractVector)
-    cg!(y, A, x; min_res = A.tol) # IDEA: pre-allocate CG?
+    cg!(y, A, x; atol = A.tol, rtol = A.tol) # IDEA: pre-allocate CG?
 end
 function LinearAlgebra.ldiv!(y::AbstractMatrix, A::LazyFactorization, x::AbstractMatrix)
-    cg!(y, A, x; min_res = A.tol) # IDEA: pre-allocate CG?
+    cg!(y, A, x; atol = A.tol, rtol = A.tol) # IDEA: pre-allocate CG?
 end
 
-
+# factorize first computes a preconditioner to make inversion with CG easier and faster
+# NOTE: this precludes LazyLinearAlgebra from being compatible with non-pos-def systems, change in the future!
+# for now, let's do this specifically in places where it is called for
+# function LinearAlgebra.factorize(A::LazyFactorization; k::Int = 16, sigma::Real = 1e-2)
+#     P = cholesky_preconditioner(A, k, sigma)
+#     return CGFact(A, P, tol = A.tol)
+# end
 
 end # module

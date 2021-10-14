@@ -157,7 +157,7 @@ function evaluate_block!(Gij, G::AbstractMatrix{<:AbstractMatOrFac}, i::Int, j::
 end
 
 function LinearAlgebra.factorize(B::BlockFactorization; tol::Real = 0)
-    return B
+    return CGFact(B, cholesky_preconditioner(B), tol = tol)
 end
 
 # IDEA: add pre-conditioner at this step for GradientKernel, etc ...

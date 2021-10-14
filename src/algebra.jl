@@ -5,7 +5,7 @@
 # The structures below rely on the mul! functions of the constituent
 # matrices / factorizations to define a potentially more efficient multiplication\
 # IDEA: introduce temporaries and optimal matrix multiplication order to minimize complexity
-# TODO: enable rdiv! for LazyMatrixSum, Product
+# IDEA: enable rdiv! for LazyMatrixSum, Product
 ################################################################################
 # in contrast to the AppliedMatrix in LazyArrays, this is not completely lazy
 # in that it calculates intermediate results, important to make use of special structure
@@ -30,7 +30,7 @@ function Base.size(L::LazyMatrixProduct, i::Int)
         size(L.args[1], 1)
     elseif i == 2
         size(L.args[end], 2)
-    else
+    elseif i > 2
         1
     end
 end
@@ -40,6 +40,19 @@ issquare(A::AbstractMatOrFac) = size(A, 1) == size(A, 2)
 # allsquare(L::LazyMatrixProduct) = all(issquare, L.args)
 Base.Matrix(L::LazyMatrixProduct) = prod(Matrix, L.args)
 Base.AbstractMatrix(L::LazyMatrixProduct) = prod(AbstractMatrix, L.args)
+
+# function LinearAlgebra.diag(L::LazyMatrixProduct)
+#     middle = length(L.args) > 2 ? *(L.args[2:end-1]) : 1
+#     n = minimum(size(L))
+#     d = zeros(eltype(L), n)
+#     for i in 1:n
+#         d = @views L.args[1][i, :]' * middle * L.args[end][:, i]
+#     end
+#     return d
+# end
+# function LinearAlgebra.factorize(A::LazyMatrixProduct; k::Int = 16, sigma::Real = 1e-2)
+#     return CGFact(A, tol = A.tol)
+# end
 
 Base.:*(x::AbstractMatrix, L::LazyMatrixProduct) = (L'*x')'
 function Base.:*(L::LazyMatrixProduct, x::AbstractVector) # IDEA: could consolidate with LazyMatrixSum
@@ -80,6 +93,7 @@ Base.adjoint(L::LazyMatrixSum) = LazyMatrixSum(adjoint.(L.args))
 Base.Matrix(L::LazyMatrixSum) = sum(Matrix, L.args)
 Base.AbstractMatrix(L::LazyMatrixSum) = sum(AbstractMatrix, L.args)
 Base.getindex(L::LazyMatrixSum, i...) = sum(x->getindex(x, i...), L.args)
+LinearAlgebra.diag(L::LazyMatrixSum) = sum(diag, L.args)
 
 Base.:*(x::AbstractMatrix, L::LazyMatrixSum) = (L'*x')'
 function Base.:*(L::LazyMatrixSum, x::AbstractVector)

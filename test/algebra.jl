@@ -40,23 +40,20 @@ using Test
     end
 
     # testing solve
-    A, B = randn(n, n), randn(n, n) # invertible MatrixProduct
-    A = A'A; B = B'B
-    _, A = eigen(A); _, B = eigen(B) # making sure matrix product is well conditioned
-    A = A'A; B = B'B
-    L = LazyMatrixProduct(A, B, tol = 1e-6)
+    A = randn(n, n) / sqrt(n) + 10I(n) # invertible MatrixProduct
+    tol = 1e-6
+    L = LazyMatrixProduct(A', A, tol = tol)
     x = randn(n)
     y = L*x
     z = L\y
-    @test isapprox(z, x, atol = 1e-6)
+    @test isapprox(L*z, y, atol = tol, rtol = tol)
 
-    A, B, C = randn(n, n), I(n), randn(n, n) # invertible MatrixSum
+    A, B, C = randn(n, n) / sqrt(n), I(n), randn(n, n) # invertible MatrixSum
     A = A'A; C = C'C; # make pos def
-    L = LazyMatrixSum(A, B, C, tol = 1e-6)
+    L = LazyMatrixSum(A, B, C, tol = tol)
     y = L*x
     z = L\y
-    w = Matrix(L)\y
-    @test isapprox(z, x, atol = 1e-6)
+    @test isapprox(L*z, y, atol = tol, rtol = tol)
 end
 
 end

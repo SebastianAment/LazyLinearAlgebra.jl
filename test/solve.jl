@@ -2,8 +2,9 @@ module TestLinearSolvers
 
 using Test
 using LinearAlgebra
-using LazyLinearAlgebra: cg, CG, CGMatrix, cg! #, preconditioned_system
-# using ForwardDiff
+using LazyLinearAlgebra: cg, CG, CGFact, cg! #, preconditioned_system
+using WoodburyIdentity
+using LazyInverse
 
 @testset "solve" begin
     @testset "conjugate gradient" begin
@@ -15,7 +16,7 @@ using LazyLinearAlgebra: cg, CG, CGMatrix, cg! #, preconditioned_system
 
         # early stopping
         ε = 1e-3
-        x = cg(A, b, min_res = ε)
+        x = cg(A, b, atol = ε)
         @test 1e-10 < norm(A*x-b) ≤ ε
 
         # high accuracy
@@ -48,16 +49,16 @@ using LazyLinearAlgebra: cg, CG, CGMatrix, cg! #, preconditioned_system
         # testing ForwardDiff?
     end
 
-    @testset "CGMatrix" begin
-        n = 16
+    @testset "CGFact" begin
+        n = 32
         m = n
         A = randn(m, n) / sqrt(n)
         A = A'A + I
         b = randn(n)
         x = A\b
 
-        CA = CGMatrix(A)
-        @test CA isa CGMatrix
+        CA = CGFact(A)
+        @test CA isa CGFact
         @test CA\b ≈ x
 
         x = randn(n)
@@ -97,6 +98,12 @@ using LazyLinearAlgebra: cg, CG, CGMatrix, cg! #, preconditioned_system
         Y = zero(X)
         @test ldiv!(Y, CA, B) ≈ X
 
+        # factorize
+        FA = factorize(CA)
+        @test FA isa CGFact
+        @test FA.preconditioner isa Inverse{<:Real, <:Woodbury}
+        @test FA \ B ≈ X
+
         # getindex
         @test CA[:, 1] ≈ A[:, 1]
         @test CA[3, 2] ≈ A[3, 2]
@@ -105,7 +112,7 @@ using LazyLinearAlgebra: cg, CG, CGMatrix, cg! #, preconditioned_system
         v = randn()
         CA[1] = v
         @test CA[1] ≈ v
-        @test A[1] ≈ v # mutates original array
+        @test A[1] ≈ v # mutates original array, WARNING: don't put tests below that rely on pos def
     end
 end
 
